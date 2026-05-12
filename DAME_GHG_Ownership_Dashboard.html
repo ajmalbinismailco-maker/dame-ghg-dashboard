@@ -150,6 +150,7 @@ td{padding:6px 10px;font-size:12px;vertical-align:middle;}
     <button class="btn btn-amber" onclick="exportExcel()">⬇ Export to Excel</button>
     <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
     <button class="btn btn-success" onclick="saveAllVisible()">💾 Save All Visible</button>
+    <button class="btn btn-primary" id="syncBtn" onclick="syncAllToSP()">🔄 Sync All to SharePoint</button>
   </div>
 </div>
 
@@ -299,8 +300,8 @@ var CS = {
 // ★ CONFIGURATION — paste your Power Automate flow URLs below
 //   (you'll get these after following the setup guide)
 // ─────────────────────────────────────────────────────────────
-var PA_READ  = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b70c9a5a0d4e463f9064ab2c9f5e5eaa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=w8vlgdC-RDQLTmeyCevqIvk5BwaUNk6kAEz1kEaKOPw";   // ← Read flow URL  (returns all saved entries)
-var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7acd19f0e9c14345ad2dd353bc136771/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zQe_Ut7OQKGtW_hSwa7dT3EXi7XQSsY_4e3llkrAJi4";   // ← Write flow URL (saves one entry)
+var PA_READ  = "";   // ← Read flow URL  (returns all saved entries)
+var PA_WRITE = "";   // ← Write flow URL (saves one entry)
 
 var asgn = {};
 var scopeF = "", sortCol = -1, sortDir = 1;
@@ -343,10 +344,23 @@ function paLoad(){
 // ── Save one entry to SharePoint via Power Automate ──
 function paSave(id, data){
   if(!PA_WRITE) return Promise.resolve();
+  // Find the source item to include all readable columns
+  var it=DATA.find(function(d){ return d.id===id; })||{};
   return fetch(PA_WRITE, {
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ id:id, name:data.name||"", email:data.email||"", vendor:data.vendor||"" })
+    body:JSON.stringify({
+      id:       id,
+      name:     data.name||"",
+      email:    data.email||"",
+      vendor:   data.vendor||"",
+      location: it.location||"",
+      locType:  it.locType||"",
+      category: it.category||"",
+      source:   it.source||"",
+      unit:     it.unit||"",
+      dataSource: it.dataSource||""
+    })
   }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); });
 }
 
@@ -476,7 +490,7 @@ function renderTable() {
     // email input
     var eInp='<input type="email" class="inp'+(hasE?" filled":"")+(isEdit?"":" readonly")
       +'" id="e_'+it.id+'" data-id="'+it.id+'" value="'+esc(a.email)
-      +'" placeholder="email@daikin.com"'+(isEdit?'':'readonly')+'>';
+      +'" placeholder="email@daikinmea.com"'+(isEdit?'':'readonly')+'>';
 
     // action buttons — data-action instead of onclick
     var btns='<div class="row-btns"><span class="dot '+dotC+'" id="dot_'+it.id+'"></span>';
@@ -616,10 +630,31 @@ function exportCSV(){
   showToast("✅ CSV exported — "+DATA.length+" rows");
 }
 
-/* ── Export to Excel (matching the updated workbook structure) ── */
+/* ── Sync ALL 295 items to SharePoint list (one-time population) ── */
+function syncAllToSP(){
+  if(!paMode){ showToast("⚠️ Not connected to SharePoint"); return; }
+  var btn=document.getElementById("syncBtn");
+  btn.disabled=true; btn.textContent="⏳ Syncing…";
+  setBanner("info","⏳ Pushing all "+DATA.length+" items to SharePoint list — this takes a minute…");
+  var done=0, failed=0;
+  // Send sequentially to avoid overwhelming Power Automate
+  function next(i){
+    if(i>=DATA.length){
+      btn.disabled=false; btn.textContent="🔄 Sync All to SharePoint";
+      if(failed===0) setBanner("ok","✅ All "+done+" items synced to SharePoint list");
+      else setBanner("warn","⚠️ "+done+" synced, "+failed+" failed — try again");
+      return;
+    }
+    var it=DATA[i];
+    var a=asgn[it.id]||{name:"",email:"",vendor:""};
+    paSave(it.id,a)
+      .then(function(){ done++; btn.textContent="⏳ "+done+"/"+DATA.length; next(i+1); })
+      .catch(function(){ failed++; next(i+1); });
+  }
+  next(0);
+}
 function exportExcel(){
   if(typeof XLSX==="undefined"){ showToast("⚠️ SheetJS not loaded — check internet connection"); return; }
-  // Build rows
   var hdr=["Location","Location Type","Scope / Category","Emission Source / Activity",
     "Department Responsible","Contact Person","Data Source Document / System",
     "Unit","Vendor / Supplier (if applicable)","ESG Responsible Person","ESG Email",
@@ -633,13 +668,22 @@ function exportExcel(){
       it.frequency,"Not started","Y"]);
   });
   var ws=XLSX.utils.aoa_to_sheet(rows);
-  // Column widths
   ws['!cols']=[{wch:35},{wch:14},{wch:28},{wch:40},{wch:20},{wch:25},{wch:32},
     {wch:8},{wch:22},{wch:25},{wch:28},{wch:14},{wch:12},{wch:12}];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,"Data Ownership Register",ws);
-  XLSX.writeFile(wb,"DAME_GHG_DataOwnership_"+new Date().toISOString().slice(0,10)+".xlsx");
-  showToast("✅ Excel exported with "+DATA.length+" rows");
+  // Explicit blob download (works on GitHub Pages and all browsers)
+  var wbout=XLSX.write(wb,{bookType:"xlsx",type:"binary"});
+  var buf=new ArrayBuffer(wbout.length);
+  var view=new Uint8Array(buf);
+  for(var i=0;i<wbout.length;i++) view[i]=wbout.charCodeAt(i)&0xFF;
+  var blob=new Blob([buf],{type:"application/octet-stream"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download="DAME_GHG_DataOwnership_"+new Date().toISOString().slice(0,10)+".xlsx";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+  showToast("✅ Excel exported — "+DATA.length+" rows");
 }
 
 /* ── Import from Excel ── */
