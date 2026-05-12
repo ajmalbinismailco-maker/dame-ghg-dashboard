@@ -299,8 +299,8 @@ var CS = {
 // ★ CONFIGURATION — paste your Power Automate flow URLs below
 //   (you'll get these after following the setup guide)
 // ─────────────────────────────────────────────────────────────
-var PA_READ  = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b70c9a5a0d4e463f9064ab2c9f5e5eaa/triggers/manual/paths/invoke?api-version=1";   // ← Read flow URL  (returns all saved entries)
-var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7acd19f0e9c14345ad2dd353bc136771/triggers/manual/paths/invoke?api-version=1";   // ← Write flow URL (saves one entry)
+var PA_READ  = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b70c9a5a0d4e463f9064ab2c9f5e5eaa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=w8vlgdC-RDQLTmeyCevqIvk5BwaUNk6kAEz1kEaKOPw";   // ← Read flow URL  (returns all saved entries)
+var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7acd19f0e9c14345ad2dd353bc136771/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zQe_Ut7OQKGtW_hSwa7dT3EXi7XQSsY_4e3llkrAJi4";   // ← Write flow URL (saves one entry)
 
 var asgn = {};
 var scopeF = "", sortCol = -1, sortDir = 1;
