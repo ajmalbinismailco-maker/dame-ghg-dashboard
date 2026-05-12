@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAME GHG Inventory – Data Ownership Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy:#003A6E; --blue:#00A0E4; --lblue:#44C8F5; --teal:#28A8C0;
+  --white:#FFFFFF; --offwhite:#F4F8FC; --grey:#5B6B7C; --ltgrey:#D0DCE8;
+  --s1:#003A6E; --s2:#00A0E4; --s3:#28A8C0; --s3wtt:#5ABCD8;
+  --success:#2E7D32; --amber:#E8A020; --vendor:#C06020;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Calibri,Arial,sans-serif;background:var(--offwhite);color:#1A2A3A;font-size:14px;}
+
+/* Header */
+.hdr{background:var(--navy);color:white;padding:0 22px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.hdr-brand{display:flex;align-items:center;gap:11px;}
+.hdr-logo{width:36px;height:36px;background:var(--blue);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;color:white;}
+.hdr-title{font-size:15px;font-weight:700;}
+.hdr-sub{font-size:11px;color:var(--lblue);margin-top:1px;}
+.hdr-btns{display:flex;gap:7px;align-items:center;}
+.btn{padding:6px 14px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;font-family:inherit;}
+.btn-outline{background:transparent;color:var(--lblue);border:1.5px solid var(--lblue);}
+.btn-outline:hover{background:rgba(68,200,245,.15);}
+.btn-primary{background:var(--blue);color:white;}
+.btn-primary:hover{background:#0090CC;}
+.btn-success{background:var(--success);color:white;}
+.btn-success:hover{background:#256428;}
+.btn-amber{background:var(--amber);color:white;}
+.btn-amber:hover{background:#C88010;}
+.btn-import{background:#5B3A8C;color:white;}
+.btn-import:hover{background:#4A2E78;}
+
+/* Stats */
+.stats{display:flex;gap:1px;background:#CDD8E8;}
+.stat{flex:1;background:white;padding:10px 15px;display:flex;align-items:center;gap:9px;}
+.stat-ico{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.stat-val{font-size:20px;font-weight:700;color:var(--navy);line-height:1;}
+.stat-lbl{font-size:11px;color:var(--grey);margin-top:2px;}
+.prog-wrap{height:5px;background:#E0EBF5;border-radius:3px;overflow:hidden;margin-top:5px;}
+.prog-fill{height:100%;background:var(--success);border-radius:3px;transition:width .4s;}
+
+/* Section title */
+.sec-ttl{padding:12px 20px 5px;font-size:11px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.7px;}
+
+/* Location cards */
+.loc-grid{padding:0 20px 10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:9px;}
+.loc-card{background:white;border-radius:7px;padding:12px 14px;border:1.5px solid var(--ltgrey);cursor:pointer;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.loc-card:hover{border-color:var(--blue);box-shadow:0 2px 8px rgba(0,160,228,.12);}
+.loc-card.active{border-color:var(--blue);background:#EBF5FC;}
+.lc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.lc-name{font-weight:600;font-size:12px;color:var(--navy);line-height:1.3;flex:1;margin-right:7px;}
+.type-bdg{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;color:white;white-space:nowrap;flex-shrink:0;}
+.lc-pct{font-size:11px;color:var(--grey);margin-bottom:4px;}
+.lc-bar{height:4px;background:#E0EBF5;border-radius:3px;overflow:hidden;}
+.lc-fill{height:100%;border-radius:3px;transition:width .4s;}
+.lc-link{font-size:11px;color:var(--blue);margin-top:4px;display:block;}
+
+/* Controls */
+.ctrl-bar{background:white;padding:9px 20px;border-bottom:1px solid var(--ltgrey);display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+.ctrl-grp{display:flex;flex-direction:column;gap:3px;}
+.ctrl-lbl{font-size:11px;color:var(--grey);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+select,input[type=text],input[type=search]{padding:5px 9px;border:1.5px solid var(--ltgrey);border-radius:5px;font-size:12px;color:#1A2A3A;background:white;outline:none;font-family:inherit;}
+select:focus,input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(0,160,228,.1);}
+.pills{display:flex;gap:5px;flex-wrap:wrap;}
+.pill{padding:4px 11px;border-radius:11px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid;transition:all .15s;background:white;}
+.pill[data-s=""].on{background:var(--navy);color:white;border-color:var(--navy);}
+.pill[data-s=""].off{color:var(--navy);border-color:var(--navy);}
+.pill[data-s="S1"].on{background:var(--s1);color:white;border-color:var(--s1);}
+.pill[data-s="S1"].off{color:var(--s1);border-color:var(--s1);}
+.pill[data-s="S2"].on{background:var(--s2);color:white;border-color:var(--s2);}
+.pill[data-s="S2"].off{color:var(--s2);border-color:var(--s2);}
+.pill[data-s="S3"].on{background:var(--teal);color:white;border-color:var(--teal);}
+.pill[data-s="S3"].off{color:var(--teal);border-color:var(--teal);}
+.row-cnt{font-size:12px;color:var(--grey);margin-left:auto;align-self:center;}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;padding:12px 20px 28px;}
+table{width:100%;border-collapse:collapse;background:white;border-radius:7px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);min-width:1400px;}
+thead tr{background:var(--navy);}
+thead th{color:white;padding:9px 10px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.3px;white-space:nowrap;cursor:pointer;user-select:none;}
+thead th:hover{background:#00275A;}
+thead th.asc::after{content:" ↑";}
+thead th.desc::after{content:" ↓";}
+tbody tr{border-bottom:1px solid #EDF3F9;transition:background .1s;}
+tbody tr:hover{background:#F0F7FD;}
+tbody tr.done{background:#F4FBF4;}
+tbody tr.done:hover{background:#EBF7EB;}
+td{padding:6px 10px;font-size:12px;vertical-align:middle;}
+.cat-bdg{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;color:white;white-space:nowrap;}
+.grey-td{color:var(--grey);font-size:11px;}
+.wtt-note{font-size:9px;color:var(--s3wtt);font-style:italic;margin-top:1px;}
+
+/* Inputs */
+.inp{width:100%;padding:4px 7px;border:1.5px solid var(--ltgrey);border-radius:4px;font-size:11px;font-family:inherit;background:white;}
+.inp:focus{border-color:var(--blue);outline:none;box-shadow:0 0 0 2px rgba(0,160,228,.1);}
+.inp.filled{border-color:#86C888;background:#F5FBF5;}
+.inp.filled-v{border-color:#C8A050;background:#FDF8F0;}  /* vendor filled */
+.inp[readonly]{background:#F7F9FB;color:var(--grey);cursor:default;}
+
+/* Row action buttons */
+.row-btns{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;}
+.rbtn{padding:3px 9px;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;white-space:nowrap;transition:all .15s;}
+.rbtn-save{background:var(--blue);color:white;}
+.rbtn-save:hover{background:#0090CC;}
+.rbtn-saved{background:var(--success);color:white;cursor:default;}
+.rbtn-edit{background:#E8F0F8;color:var(--navy);border:1px solid var(--ltgrey);}
+.rbtn-edit:hover{background:#D0E0F0;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.dot-e{background:#CCC;}
+.dot-p{background:var(--amber);}
+.dot-d{background:var(--success);}
+
+/* Vendor column highlight in header */
+.th-vendor{background:#8B4A10 !important;}
+.th-vendor:hover{background:#6D3A08 !important;}
+
+.no-res{text-align:center;padding:40px;color:var(--grey);font-style:italic;display:none;}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--success);color:white;padding:10px 20px;border-radius:7px;font-size:13px;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:9999;}
+
+/* Import overlay */
+.import-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;}
+.import-overlay.open{display:flex;}
+.import-box{background:white;border-radius:10px;padding:28px 32px;width:480px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.import-box h3{font-size:16px;color:var(--navy);margin-bottom:8px;}
+.import-box p{font-size:13px;color:var(--grey);margin-bottom:18px;line-height:1.5;}
+.import-drop{border:2px dashed var(--ltgrey);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:border-color .2s;}
+.import-drop:hover,.import-drop.over{border-color:var(--blue);background:#F0F8FF;}
+.import-drop p{font-size:13px;color:var(--grey);}
+.import-drop strong{color:var(--blue);}
+.import-actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-logo">D</div>
+    <div>
+      <div class="hdr-title">DAME GHG Inventory — Data Ownership Register</div>
+      <div class="hdr-sub">ESG &amp; Sustainability Team &nbsp;|&nbsp; 13 Locations &nbsp;|&nbsp; Scope 1 · 2 · 3</div>
+    </div>
+  </div>
+  <div class="hdr-btns">
+    <button class="btn btn-import" onclick="openImport()">⬆ Import Excel</button>
+    <button class="btn btn-amber" onclick="exportExcel()">⬇ Export to Excel</button>
+    <button class="btn btn-outline" onclick="exportCSV()">⬇ CSV</button>
+    <button class="btn btn-success" onclick="saveAllVisible()">💾 Save All Visible</button>
+  </div>
+</div>
+
+<!-- SP status banner -->
+<div id="spBanner" style="display:none;background:var(--navy);color:white;padding:8px 22px;font-size:12px;align-items:center;gap:10px;justify-content:space-between;">
+  <span></span>
+  <span style="cursor:pointer;opacity:.7" onclick="this.parentElement.style.display='none'">✕</span>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-ico" style="background:#EBF2FB">📍</div>
+    <div><div class="stat-val">13</div><div class="stat-lbl">Locations</div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-ico" style="background:#EBF2FB">📋</div>
+    <div><div class="stat-val" id="sTotal">295</div><div class="stat-lbl">Data Points</div></div>
+  </div>
+  <div class="stat" style="flex:2">
+    <div class="stat-ico" style="background:#F0FBF0">✅</div>
+    <div style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div><div class="stat-val" id="sAssigned">0</div><div class="stat-lbl">Owners Assigned</div></div>
+        <div style="text-align:right"><div class="stat-val" id="sPct" style="color:var(--success)">0%</div><div class="stat-lbl">Complete</div></div>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="gProg" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="stat" style="flex:1.2">
+    <div class="stat-ico" style="background:#FDF6EC">🏢</div>
+    <div><div class="stat-val" id="sVendor">0</div><div class="stat-lbl">Vendors Entered</div></div>
+  </div>
+  <div class="stat" style="flex:1.2">
+    <div style="width:100%">
+      <div class="stat-lbl" style="margin-bottom:5px">Assigned by scope</div>
+      <div style="display:flex;gap:12px;font-size:12px">
+        <span><span class="dot" style="background:var(--s1)"></span> S1: <b id="s1c">0</b></span>
+        <span><span class="dot" style="background:var(--s2)"></span> S2: <b id="s2c">0</b></span>
+        <span><span class="dot" style="background:var(--teal)"></span> S3: <b id="s3c">0</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Location cards -->
+<div class="sec-ttl">📍 Locations — click to filter</div>
+<div class="loc-grid" id="locGrid"></div>
+
+<!-- Controls -->
+<div class="ctrl-bar">
+  <div class="ctrl-grp">
+    <div class="ctrl-lbl">Location</div>
+    <select id="selLoc" onchange="applyFilters()">
+      <option value="">All Locations</option>
+    </select>
+  </div>
+  <div class="ctrl-grp">
+    <div class="ctrl-lbl">Scope</div>
+    <div class="pills">
+      <span class="pill on" data-s="" onclick="setScope(this)">All</span>
+      <span class="pill off" data-s="S1" onclick="setScope(this)">Scope 1</span>
+      <span class="pill off" data-s="S2" onclick="setScope(this)">Scope 2</span>
+      <span class="pill off" data-s="S3" onclick="setScope(this)">Scope 3</span>
+    </div>
+  </div>
+  <div class="ctrl-grp">
+    <div class="ctrl-lbl">Status</div>
+    <select id="selStat" onchange="applyFilters()">
+      <option value="">All Items</option>
+      <option value="y">Owner Assigned</option>
+      <option value="n">No Owner Yet</option>
+      <option value="v">Vendor Missing</option>
+    </select>
+  </div>
+  <div class="ctrl-grp">
+    <div class="ctrl-lbl">Search</div>
+    <input type="search" id="srch" placeholder="Source, vendor, person…" oninput="applyFilters()" style="width:200px">
+  </div>
+  <div class="row-cnt" id="rowCnt"></div>
+</div>
+
+<!-- Table -->
+<div class="tbl-wrap">
+  <table id="tbl">
+    <thead><tr>
+      <th onclick="sortBy(0)">#</th>
+      <th onclick="sortBy(1)">Location</th>
+      <th onclick="sortBy(2)">Type</th>
+      <th onclick="sortBy(3)">Scope / Category</th>
+      <th onclick="sortBy(4)">Emission Source / Activity</th>
+      <th onclick="sortBy(5)" style="text-align:center">Unit</th>
+      <th onclick="sortBy(6)">Data Source Document</th>
+      <th onclick="sortBy(7)">Frequency</th>
+      <th class="th-vendor" style="min-width:160px" onclick="sortBy(8)">🏢 Vendor / Supplier<br><small style="font-weight:400;opacity:.8">(if applicable)</small></th>
+      <th style="min-width:148px">ESG Responsible Person</th>
+      <th style="min-width:170px">ESG Email</th>
+      <th style="width:105px">Action</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="no-res" id="noRes">No items match the current filters.</div>
+</div>
+
+<!-- Import overlay -->
+<div class="import-overlay" id="importOverlay">
+  <div class="import-box">
+    <h3>Import from Excel</h3>
+    <p>Upload the DAME GHG Data Mapping Excel file. The dashboard will read any existing entries in the <strong>ESG Responsible Person</strong>, <strong>ESG Email</strong>, and <strong>Vendor / Supplier</strong> columns and load them in.</p>
+    <div class="import-drop" id="importDrop" onclick="document.getElementById('fileIn').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+      <p>&#128196; <strong>Click to browse</strong> or drag &amp; drop your .xlsx file here</p>
+      <p style="margin-top:6px;font-size:12px" id="importStatus">No file selected</p>
+    </div>
+    <input type="file" id="fileIn" accept=".xlsx" style="display:none" onchange="handleFile(this.files[0])">
+    <div class="import-actions">
+      <button class="btn btn-outline" style="color:var(--grey);border-color:var(--ltgrey)" onclick="closeImport()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var DATA = [{"id":"item_0","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Stationary Combustion","source":"Propane / LPG (packaging)","unit":"kg","dataSource":"Procurement PO / delivery note","frequency":"Monthly","vendor":""},{"id":"item_1","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Stationary Combustion","source":"Fire pump diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_2","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Stationary Combustion","source":"Generator diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_3","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Process-Related Emissions","source":"Spray paint (solvent emissions)","unit":"kg","dataSource":"Procurement PO / MSDS","frequency":"Monthly","vendor":""},{"id":"item_4","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Process-Related Emissions","source":"WD-40 (GWP – CO₂ propellant)","unit":"kg","dataSource":"Procurement PO / MSDS / SDS","frequency":"Monthly","vendor":""},{"id":"item_5","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_6","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Mobile Combustion","source":"Forklift – electric (kWh)","unit":"kWh","dataSource":"Fuel invoice / electricity sub-meter","frequency":"Monthly","vendor":""},{"id":"item_7","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_8","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"Chiller refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_9","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"Freezer refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_10","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_11","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"CO₂ fire extinguisher","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_12","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S1 Fugitive Emissions","source":"FM200 fire suppression","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_13","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_14","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S2 Electricity","source":"Solar PV generation","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Annual","vendor":""},{"id":"item_15","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_16","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_17","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_18","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_19","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_20","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_21","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_22","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_23","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_24","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_25","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Non-Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_26","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_27","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_28","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_29","location":"UAE – Factory (Jafza, Dubai)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_30","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Stationary Combustion","source":"Fire pump diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_31","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_32","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Mobile Combustion","source":"Rental Car (expat-provided)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_33","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_34","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_35","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Fugitive Emissions","source":"Chiller refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_36","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_37","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S1 Fugitive Emissions","source":"CO₂ fire extinguisher","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_38","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_39","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S2 Electricity","source":"Solar PV generation","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Annual","vendor":""},{"id":"item_40","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_41","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_42","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_43","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_44","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_45","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_46","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_47","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_48","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_49","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_50","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_51","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.5 Waste Generated in Operations","source":"Non-Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_52","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_53","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_54","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_55","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_56","location":"UAE – HQ Office (Jafza, Dubai)","locType":"Office","category":"S3 Cat.7 Employee Commuting","source":"Employee shuttle","unit":"km","dataSource":"Transport contractor invoice","frequency":"Monthly","vendor":""},{"id":"item_57","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Stationary Combustion","source":"Fire pump diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_58","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_59","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Mobile Combustion","source":"Rental Car (expat-provided)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_60","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_61","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_62","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_63","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_64","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_65","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_66","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_67","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_68","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_69","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_70","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_71","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_72","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_73","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_74","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_75","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_76","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_77","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_78","location":"UAE – Abu Dhabi Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_79","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_80","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Rental Car (expat-provided)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_81","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_82","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_83","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_84","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_85","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_86","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_87","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_88","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_89","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_90","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_91","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_92","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_93","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_94","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_95","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_96","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_97","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_98","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_99","location":"UAE – Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_100","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Stationary Combustion","source":"Propane / LPG (packaging)","unit":"kg","dataSource":"Procurement PO / delivery note","frequency":"Monthly","vendor":""},{"id":"item_101","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Stationary Combustion","source":"Fire pump diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_102","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Process-Related Emissions","source":"Spray paint (solvent emissions)","unit":"kg","dataSource":"Procurement PO / MSDS","frequency":"Monthly","vendor":""},{"id":"item_103","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Process-Related Emissions","source":"WD-40 (GWP – CO₂ propellant)","unit":"kg","dataSource":"Procurement PO / MSDS / SDS","frequency":"Monthly","vendor":""},{"id":"item_104","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_105","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_106","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Mobile Combustion","source":"Forklift – electric (kWh)","unit":"kWh","dataSource":"Fuel invoice / electricity sub-meter","frequency":"Monthly","vendor":""},{"id":"item_107","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_108","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Fugitive Emissions","source":"Freezer refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_109","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_110","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Fugitive Emissions","source":"CO₂ fire extinguisher","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_111","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S1 Fugitive Emissions","source":"FM200 fire suppression","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_112","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_113","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S2 Electricity","source":"Solar PV generation","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Annual","vendor":""},{"id":"item_114","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_115","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_116","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_117","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_118","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_119","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_120","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_121","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_122","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_123","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_124","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Non-Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_125","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_126","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_127","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_128","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_129","location":"KSA – Factory (Riyadh, DKSA)","locType":"Factory","category":"S3 Cat.7 Employee Commuting","source":"Employee shuttle","unit":"km","dataSource":"Transport contractor invoice","frequency":"Monthly","vendor":""},{"id":"item_130","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Stationary Combustion","source":"Fire pump diesel","unit":"litres","dataSource":"Fuel invoice / fuel card","frequency":"Monthly","vendor":""},{"id":"item_131","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_132","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Mobile Combustion","source":"Rental Car (expat-provided)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_133","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_134","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_135","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_136","location":"KSA – Riyadh Office","locType":"Office","category":"S1 Fugitive Emissions","source":"CO₂ fire extinguisher","unit":"kg","dataSource":"Fire system inspection report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_137","location":"KSA – Riyadh Office","locType":"Office","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_138","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_139","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_140","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_141","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_142","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_143","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_144","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_145","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_146","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_147","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_148","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_149","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.5 Waste Generated in Operations","source":"Non-Hazardous Waste","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_150","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_151","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_152","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_153","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_154","location":"KSA – Riyadh Office","locType":"Office","category":"S3 Cat.7 Employee Commuting","source":"Employee shuttle","unit":"km","dataSource":"Transport contractor invoice","frequency":"Monthly","vendor":""},{"id":"item_155","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_156","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_157","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_158","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_159","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_160","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_161","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_162","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_163","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_164","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_165","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_166","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_167","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_168","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_169","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_170","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_171","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_172","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_173","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_174","location":"KSA – Dammam Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_175","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_176","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_177","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_178","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_179","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_180","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_181","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_182","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_183","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_184","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_185","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_186","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_187","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_188","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_189","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_190","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_191","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_192","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_193","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_194","location":"KSA – Jeddah Branch","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_195","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_196","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_197","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_198","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_199","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_200","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_201","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_202","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_203","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_204","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_205","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_206","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_207","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_208","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_209","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_210","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_211","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_212","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_213","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_214","location":"KSA – Tabuk Service Centre","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_215","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_216","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_217","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_218","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_219","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_220","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_221","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_222","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_223","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_224","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_225","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_226","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_227","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_228","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_229","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_230","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_231","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_232","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_233","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_234","location":"Qatar – Sales & Service Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_235","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_236","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_237","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_238","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_239","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_240","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_241","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_242","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_243","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_244","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_245","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_246","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_247","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_248","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_249","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_250","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_251","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_252","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_253","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_254","location":"Egypt – Office & Service Centre (Cairo)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_255","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_256","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_257","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_258","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_259","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_260","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_261","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_262","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_263","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_264","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_265","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_266","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_267","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_268","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_269","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_270","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_271","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_272","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_273","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_274","location":"Egypt – Service Centre (Hurghada)","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_275","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Company-owned vehicle fuel","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_276","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S1 Mobile Combustion","source":"Service Vehicles (pick-up / technician)","unit":"litres","dataSource":"Fuel card / fleet record","frequency":"Monthly","vendor":""},{"id":"item_277","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"AC / VRV refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Annual (post-AMC)","vendor":""},{"id":"item_278","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S1 Fugitive Emissions","source":"Water dispenser refrigerant","unit":"kg","dataSource":"AMC service report","frequency":"Monthly","vendor":""},{"id":"item_279","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S2 Electricity","source":"Grid electricity","unit":"kWh","dataSource":"Utility bill / Inverter log","frequency":"Monthly","vendor":""},{"id":"item_280","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Water consumption","unit":"m³","dataSource":"Water utility bill","frequency":"Monthly","vendor":""},{"id":"item_281","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Office paper","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_282","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.1 Purchased Goods & Services","source":"Semi-finished & Raw Materials Purchase","unit":"reams","dataSource":"Stationery purchase record","frequency":"Annual","vendor":""},{"id":"item_283","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.2 Capital Goods","source":"IT equipment purchases","unit":"units","dataSource":"IT asset register / PO","frequency":"Annual","vendor":""},{"id":"item_284","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Propane / LPG (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_285","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Fire pump diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_286","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Generator diesel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_287","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Company-owned vehicle fuel (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_288","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Rental car (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_289","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Service vehicles (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_290","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.3 Fuel & Energy","source":"Grid electricity (WTT)","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_291","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.5 Waste Generated in Operations","source":"Wastewater discharge","unit":"tonnes","dataSource":"Waste contractor manifest","frequency":"Monthly / per collection","vendor":""},{"id":"item_292","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Business Trips","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_293","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Hotel Accommodations","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""},{"id":"item_294","location":"Morocco – Branch Office","locType":"Branch / Service Centre","category":"S3 Cat.6 Business Travel","source":"Taxi Usage","unit":"","dataSource":"N/A – not tracked","frequency":"Annual","vendor":""}];
+
+var TC = {"Factory":"#E85000","Office":"#1E7E34","Branch / Service Centre":"#5B3A8C"};
+var CC = {
+  "S1 Stationary Combustion":"#003A6E","S1 Mobile Combustion":"#1B5EA0",
+  "S1 Fugitive Emissions":"#0068A0","S1 Process-Related Emissions":"#004E8C",
+  "S2 Electricity":"#00A0E4",
+  "S3 Cat.1 Purchased Goods & Services":"#28A8C0","S3 Cat.2 Capital Goods":"#2A9AB8",
+  "S3 Cat.3 Fuel & Energy":"#5ABCD8","S3 Cat.5 Waste Generated in Operations":"#339AB0",
+  "S3 Cat.6 Business Travel":"#1D8E98","S3 Cat.7 Employee Commuting":"#187A85",
+  "S3 Cat.8 Upstream Leased Assets":"#3D9BB5","S3 Cat.10 Processing of Sold Products":"#2B8A9A"
+};
+var CS = {
+  "S1 Stationary Combustion":"S1 Stationary","S1 Mobile Combustion":"S1 Mobile",
+  "S1 Fugitive Emissions":"S1 Fugitive","S1 Process-Related Emissions":"S1 Process",
+  "S2 Electricity":"S2 Electricity",
+  "S3 Cat.1 Purchased Goods & Services":"S3 Cat.1","S3 Cat.2 Capital Goods":"S3 Cat.2",
+  "S3 Cat.3 Fuel & Energy":"S3 Cat.3 WTT","S3 Cat.5 Waste Generated in Operations":"S3 Cat.5",
+  "S3 Cat.6 Business Travel":"S3 Cat.6","S3 Cat.7 Employee Commuting":"S3 Cat.7",
+  "S3 Cat.8 Upstream Leased Assets":"S3 Cat.8","S3 Cat.10 Processing of Sold Products":"S3 Cat.10"
+};
+
+// ─────────────────────────────────────────────────────────────
+// ★ CONFIGURATION — paste your Power Automate flow URLs below
+//   (you'll get these after following the setup guide)
+// ─────────────────────────────────────────────────────────────
+var PA_READ  = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b70c9a5a0d4e463f9064ab2c9f5e5eaa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=w8vlgdC-RDQLTmeyCevqIvk5BwaUNk6kAEz1kEaKOPw";   // ← Read flow URL  (returns all saved entries)
+var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7acd19f0e9c14345ad2dd353bc136771/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zQe_Ut7OQKGtW_hSwa7dT3EXi7XQSsY_4e3llkrAJi4";   // ← Write flow URL (saves one entry)
+
+var asgn = {};
+var scopeF = "", sortCol = -1, sortDir = 1;
+var STORE  = "dame_ghg_v4";
+var editMode = {};
+var paMode = false;
+
+// ── localStorage helpers ──
+function lsLoad(){ try{ var s=localStorage.getItem(STORE); if(s) asgn=JSON.parse(s); }catch(e){} }
+function lsSave(){ try{ localStorage.setItem(STORE,JSON.stringify(asgn)); }catch(e){} }
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// ── Status banner ──
+function setBanner(type, msg){
+  var b=document.getElementById("spBanner"); if(!b) return;
+  var colors={ ok:"#1E7D34", warn:"#B05000", err:"#A00000", info:"#003A6E" };
+  b.style.background=colors[type]||colors.info; b.style.display="flex";
+  b.querySelector("span").textContent=msg;
+  if(type==="ok") setTimeout(function(){ b.style.display="none"; },4000);
+}
+
+// ── Load all entries from SharePoint via Power Automate ──
+function paLoad(){
+  if(!PA_READ) return Promise.reject("PA_READ not set");
+  setBanner("info","⏳ Loading data from SharePoint…");
+  return fetch(PA_READ, { method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" })
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(items){
+      if(Array.isArray(items)){
+        items.forEach(function(item){
+          if(item.Title) asgn[item.Title]={ name:item.ESGPerson||"", email:item.ESGEmail||"", vendor:item.Vendor||"" };
+        });
+        lsSave();
+      }
+      paMode=true;
+      setBanner("ok","✅ Connected to SharePoint — "+Object.keys(asgn).length+" entries loaded");
+    });
+}
+
+// ── Save one entry to SharePoint via Power Automate ──
+function paSave(id, data){
+  if(!PA_WRITE) return Promise.resolve();
+  return fetch(PA_WRITE, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({ id:id, name:data.name||"", email:data.email||"", vendor:data.vendor||"" })
+  }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); });
+}
+
+// ── Debounced persist: localStorage immediately, SharePoint after 1.5s idle ──
+var saveTimer=null;
+function persist(id, data){
+  lsSave();
+  if(!paMode||!id||!data) return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){
+    paSave(id,data).catch(function(e){
+      setBanner("warn","⚠️ SharePoint save failed — data kept locally. "+e.message);
+    });
+  }, 1500);
+}
+
+// ── Init ──
+function init(){
+  lsLoad();
+  attachTableDelegation();
+  attachCardDelegation();
+  buildDrop(); buildCards(); renderTable(); updateStats();
+  if(PA_READ){
+    paLoad()
+      .then(function(){ buildCards(); renderTable(); updateStats(); })
+      .catch(function(e){
+        paMode=false;
+        setBanner("warn","⚠️ Could not load from SharePoint ("+e.message+"). Running on local storage — changes won't be shared.");
+      });
+  } else {
+    setBanner("warn","📌 Local mode — paste your Power Automate flow URLs to enable shared memory.");
+  }
+}
+
+function buildDrop() {
+  var sel=document.getElementById("selLoc"), seen={};
+  DATA.forEach(function(i){ if(!seen[i.location]){ seen[i.location]=1; var o=document.createElement("option"); o.value=o.textContent=i.location; sel.appendChild(o); } });
+}
+
+function buildCards() {
+  var grid=document.getElementById("locGrid"), cur=document.getElementById("selLoc").value;
+  grid.innerHTML="";
+  var seen=[];
+  DATA.forEach(function(i){ if(seen.indexOf(i.location)<0) seen.push(i.location); });
+  seen.forEach(function(loc){
+    var li=DATA.filter(function(i){ return i.location===loc; });
+    var done=li.filter(function(i){ return asgn[i.id]&&asgn[i.id].name; }).length;
+    var pct=Math.round(done/li.length*100);
+    var lt=li[0].locType, tc=TC[lt]||"#666";
+    var bc=pct===100?"#2E7D32":pct>50?"#E8A020":"#00A0E4";
+    var d=document.createElement("div");
+    d.className="loc-card"+(cur===loc?" active":"");
+    d.setAttribute("data-loc", loc);
+    d.innerHTML='<div class="lc-top"><div class="lc-name">'+esc(loc)+'</div>'
+      +'<span class="type-bdg" style="background:'+tc+'">'+esc(lt.replace("Branch / Service Centre","Branch"))+'</span></div>'
+      +'<div class="lc-pct">'+done+'/'+li.length+' assigned ('+pct+'%)</div>'
+      +'<div class="lc-bar"><div class="lc-fill" style="width:'+pct+'%;background:'+bc+'"></div></div>'
+      +'<span class="lc-link">'+(pct===100?"&#10003; Complete":"&#8594; View &amp; assign")+'</span>';
+    grid.appendChild(d);
+  });
+}
+
+// ── Event delegation for location cards ──
+function attachCardDelegation(){
+  var grid = document.getElementById("locGrid");
+  if(!grid || grid._delegated) return;
+  grid._delegated = true;
+  grid.addEventListener("click", function(e){
+    var card = e.target.closest("[data-loc]");
+    if(card) filterToLoc(card.getAttribute("data-loc"));
+  });
+}
+
+function filterToLoc(loc) {
+  document.getElementById("selLoc").value=loc;
+  applyFilters();
+  document.querySelector(".ctrl-bar").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function getFiltered() {
+  var loc=document.getElementById("selLoc").value;
+  var stat=document.getElementById("selStat").value;
+  var s=document.getElementById("srch").value.toLowerCase();
+  return DATA.filter(function(item){
+    if(loc && item.location!==loc) return false;
+    if(scopeF && item.category.indexOf(scopeF)!==0) return false;
+    if(stat==="y" && !(asgn[item.id]&&asgn[item.id].name)) return false;
+    if(stat==="n" && (asgn[item.id]&&asgn[item.id].name)) return false;
+    if(stat==="v" && (asgn[item.id]&&asgn[item.id].vendor)) return false;
+    if(s){
+      var hay=(item.location+" "+item.category+" "+item.source+" "+item.dataSource
+        +" "+((asgn[item.id]||{}).name||"")+" "+((asgn[item.id]||{}).vendor||"")).toLowerCase();
+      if(hay.indexOf(s)<0) return false;
+    }
+    return true;
+  });
+}
+
+function renderTable() {
+  var items=getFiltered(), tbody=document.getElementById("tbody");
+  var noR=document.getElementById("noRes");
+  document.getElementById("rowCnt").textContent=items.length+" items shown";
+  if(!items.length){ tbody.innerHTML=""; noR.style.display="block"; return; }
+  noR.style.display="none";
+  var h="";
+  for(var i=0;i<items.length;i++){
+    var it=items[i], a=asgn[it.id]||{name:"",email:"",vendor:""};
+    var hasN=!!a.name, hasE=!!a.email, hasV=!!a.vendor;
+    var done=hasN&&hasE, partial=hasN||hasE;
+    var isEdit=editMode[it.id]||(!done);
+    var tc=TC[it.locType]||"#666", cc=CC[it.category]||"#28A8C0", cs=CS[it.category]||it.category;
+    var isWTT=it.category.indexOf("Cat.3")>=0;
+    var st=it.locType.replace("Branch / Service Centre","Branch");
+    var ds=isWTT?'<em style="color:var(--s3wtt);font-size:10px">Derived from S1</em>':esc(it.dataSource);
+    var dotC=done?"dot-d":partial?"dot-p":"dot-e";
+
+    // vendor input — no inline handlers
+    var vInp='<input type="text" class="inp'+(hasV?" filled-v":"")+(isEdit?"":" readonly")
+      +'" id="v_'+it.id+'" data-id="'+it.id+'" value="'+esc(a.vendor)
+      +'" placeholder="Supplier name…"'+(isEdit?'':'readonly')+'>';
+
+    // name input
+    var nInp='<input type="text" class="inp'+(hasN?" filled":"")+(isEdit?"":" readonly")
+      +'" id="n_'+it.id+'" data-id="'+it.id+'" value="'+esc(a.name)
+      +'" placeholder="Responsible person…"'+(isEdit?'':'readonly')+'>';
+
+    // email input
+    var eInp='<input type="email" class="inp'+(hasE?" filled":"")+(isEdit?"":" readonly")
+      +'" id="e_'+it.id+'" data-id="'+it.id+'" value="'+esc(a.email)
+      +'" placeholder="email@daikin.com"'+(isEdit?'':'readonly')+'>';
+
+    // action buttons — data-action instead of onclick
+    var btns='<div class="row-btns"><span class="dot '+dotC+'" id="dot_'+it.id+'"></span>';
+    if(isEdit){
+      btns+='<button class="rbtn rbtn-save" data-id="'+it.id+'" data-action="save">Save</button>';
+    } else {
+      btns+='<button class="rbtn rbtn-saved" disabled>Saved ✓</button>'
+           +'<button class="rbtn rbtn-edit" data-id="'+it.id+'" data-action="edit">Edit</button>';
+    }
+    btns+='</div>';
+
+    h+='<tr id="row_'+it.id+'"'+(done?' class="done"':'')+'>'      +'<td class="grey-td" style="text-align:center">'+(i+1)+'</td>'      +'<td style="font-weight:600;font-size:11px;line-height:1.3">'+esc(it.location)+'</td>'      +'<td><span class="type-bdg" style="background:'+tc+'">'+esc(st)+'</span></td>'      +'<td><span class="cat-bdg" style="background:'+cc+'">'+esc(cs)+'</span>'+(isWTT?'<div class="wtt-note">Derived from S1</div>':'')+'</td>'      +'<td style="font-weight:500">'+esc(it.source)+'</td>'      +'<td class="grey-td" style="text-align:center">'+esc(it.unit||'—')+'</td>'      +'<td class="grey-td" style="font-size:11px">'+ds+'</td>'      +'<td class="grey-td">'+esc(it.frequency)+'</td>'      +'<td style="background:#FDF8F2">'+vInp+'</td>'      +'<td>'+nInp+'</td>'      +'<td>'+eInp+'</td>'      +'<td>'+btns+'</td>'      +'</tr>';
+  }
+  tbody.innerHTML=h;
+  attachTableDelegation();
+}
+
+function onInp(el){
+  el.classList.toggle("filled", !!el.value);
+  el.classList.remove("filled-v");
+  if(el.id && el.id.indexOf("v_")===0 && el.value) el.classList.add("filled-v");
+}
+
+// ── Event delegation for dynamically rendered rows ──
+// (replaces inline onclick/oninput — required for SharePoint CSP)
+function attachTableDelegation(){
+  var tbl = document.getElementById("tbody");
+  if(!tbl || tbl._delegated) return;
+  tbl._delegated = true;
+
+  // input events
+  tbl.addEventListener("input", function(e){
+    if(e.target && e.target.dataset.id) onInp(e.target);
+  });
+
+  // blur events (auto-save on tab/click away)
+  tbl.addEventListener("blur", function(e){
+    if(e.target && e.target.dataset.id) autoSave(e.target);
+  }, true);
+
+  // click events (save / edit buttons)
+  tbl.addEventListener("click", function(e){
+    var btn = e.target.closest("[data-action]");
+    if(!btn) return;
+    var id = btn.dataset.id, action = btn.dataset.action;
+    if(action === "save") saveRow(id);
+    if(action === "edit") editRow(id);
+  });
+}
+
+function autoSave(el) {
+  var id=el.dataset.id;
+  var v=getVal("v_"+id), n=getVal("n_"+id), e=getVal("e_"+id);
+  if(v||n||e){ asgn[id]=Object.assign(asgn[id]||{},{name:n,email:e,vendor:v}); persist(id,asgn[id]); updateStats(); buildCards(); }
+}
+
+function getVal(id){ var el=document.getElementById(id); return el?el.value:""; }
+
+function saveRow(id) {
+  var v=getVal("v_"+id), n=getVal("n_"+id), e=getVal("e_"+id);
+  asgn[id]=Object.assign(asgn[id]||{},{name:n,email:e,vendor:v});
+  persist(id,asgn[id]); editMode[id]=false;
+  updateStats(); buildCards(); renderTable();
+}
+
+function editRow(id) {
+  editMode[id]=true; renderTable();
+  var vel=document.getElementById("v_"+id); if(vel) vel.focus();
+}
+
+function saveAllVisible() {
+  var items=getFiltered();
+  items.forEach(function(it){
+    var v=getVal("v_"+it.id), n=getVal("n_"+it.id), e=getVal("e_"+it.id);
+    asgn[it.id]=Object.assign(asgn[it.id]||{},{name:n,email:e,vendor:v});
+    editMode[it.id]=false;
+  });
+  lsSave();
+  if(paMode){
+    setBanner("info","⏳ Saving "+items.length+" items to SharePoint…");
+    var chain=Promise.resolve();
+    items.forEach(function(it){ chain=chain.then(function(){ return paSave(it.id,asgn[it.id]); }); });
+    chain
+      .then(function(){ setBanner("ok","✅ "+items.length+" items saved to SharePoint"); })
+      .catch(function(e){ setBanner("warn","⚠️ Some saves failed: "+e.message); });
+  } else {
+    showToast("✅ "+items.length+" items saved locally");
+  }
+  updateStats(); buildCards(); renderTable();
+}
+
+function applyFilters(){ renderTable(); buildCards(); }
+
+function setScope(el){
+  scopeF=el.getAttribute("data-s");
+  document.querySelectorAll(".pill").forEach(function(p){ p.className="pill "+(p===el?"on":"off"); });
+  applyFilters();
+}
+
+function updateStats(){
+  var total=DATA.length;
+  var done=DATA.filter(function(i){ return asgn[i.id]&&asgn[i.id].name; }).length;
+  var vendors=DATA.filter(function(i){ return asgn[i.id]&&asgn[i.id].vendor; }).length;
+  var pct=Math.round(done/total*100);
+  document.getElementById("sTotal").textContent=total;
+  document.getElementById("sAssigned").textContent=done;
+  document.getElementById("sPct").textContent=pct+"%";
+  document.getElementById("gProg").style.width=pct+"%";
+  document.getElementById("sVendor").textContent=vendors;
+  document.getElementById("s1c").textContent=DATA.filter(function(i){ return i.category.indexOf("S1")===0&&asgn[i.id]&&asgn[i.id].name; }).length;
+  document.getElementById("s2c").textContent=DATA.filter(function(i){ return i.category.indexOf("S2")===0&&asgn[i.id]&&asgn[i.id].name; }).length;
+  document.getElementById("s3c").textContent=DATA.filter(function(i){ return i.category.indexOf("S3")===0&&asgn[i.id]&&asgn[i.id].name; }).length;
+}
+
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  document.querySelectorAll("thead th").forEach(function(th,i){ th.classList.remove("asc","desc"); if(i===col) th.classList.add(sortDir===1?"asc":"desc"); });
+  var keys=["id","location","locType","category","source","unit","dataSource","frequency"];
+  var k=keys[col]||"location";
+  DATA.sort(function(a,b){ return (a[k]||"").localeCompare(b[k]||"")*sortDir; });
+  renderTable();
+}
+
+/* ── Export CSV ── */
+function exportCSV(){
+  var hdr=["ID","Location","Location Type","Scope/Category","Emission Source","Unit","Data Source","Frequency","Vendor/Supplier","ESG Responsible Person","ESG Email"];
+  var rows=DATA.map(function(it){
+    var a=asgn[it.id]||{};
+    return [it.id,it.location,it.locType,it.category,it.source,it.unit||"",it.dataSource,it.frequency,a.vendor||"",a.name||"",a.email||""]
+      .map(function(v){ return '"'+(v||"").replace(/"/g,'""')+'"'; }).join(",");
+  });
+  var csv=[hdr.join(",")].concat(rows).join("\n");
+  var blob=new Blob([csv],{type:"text/csv"});
+  var url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="DAME_GHG_DataOwnership.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast("✅ CSV exported — "+DATA.length+" rows");
+}
+
+/* ── Export to Excel (matching the updated workbook structure) ── */
+function exportExcel(){
+  if(typeof XLSX==="undefined"){ showToast("⚠️ SheetJS not loaded — check internet connection"); return; }
+  // Build rows
+  var hdr=["Location","Location Type","Scope / Category","Emission Source / Activity",
+    "Department Responsible","Contact Person","Data Source Document / System",
+    "Unit","Vendor / Supplier (if applicable)","ESG Responsible Person","ESG Email",
+    "Collection Frequency","Status","Applicability"];
+  var rows=[hdr];
+  DATA.forEach(function(it){
+    var a=asgn[it.id]||{};
+    rows.push([it.location,it.locType,it.category,it.source,
+      it.dept||"",it.contact||"",it.dataSource,
+      it.unit||"",a.vendor||"",a.name||"",a.email||"",
+      it.frequency,"Not started","Y"]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  // Column widths
+  ws['!cols']=[{wch:35},{wch:14},{wch:28},{wch:40},{wch:20},{wch:25},{wch:32},
+    {wch:8},{wch:22},{wch:25},{wch:28},{wch:14},{wch:12},{wch:12}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,"Data Ownership Register",ws);
+  XLSX.writeFile(wb,"DAME_GHG_DataOwnership_"+new Date().toISOString().slice(0,10)+".xlsx");
+  showToast("✅ Excel exported with "+DATA.length+" rows");
+}
+
+/* ── Import from Excel ── */
+function openImport(){ document.getElementById("importOverlay").classList.add("open"); }
+function closeImport(){ document.getElementById("importOverlay").classList.remove("open"); document.getElementById("importStatus").textContent="No file selected"; }
+function dragOver(e){ e.preventDefault(); document.getElementById("importDrop").classList.add("over"); }
+function dragLeave(e){ document.getElementById("importDrop").classList.remove("over"); }
+function dropFile(e){ e.preventDefault(); dragLeave(e); handleFile(e.dataTransfer.files[0]); }
+
+function handleFile(file){
+  if(!file) return;
+  if(typeof XLSX==="undefined"){ showToast("⚠️ SheetJS not loaded"); return; }
+  document.getElementById("importStatus").textContent="Reading "+file.name+"…";
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:"binary"});
+      var ws=wb.Sheets["Data Ownership Register"];
+      if(!ws){ showToast("⚠️ Sheet 'Data Ownership Register' not found"); closeImport(); return; }
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+      // Find header row — look for "Location" in col A
+      var hdrRow=-1;
+      for(var r=0;r<rows.length;r++){ if(rows[r][0]==="Location"){ hdrRow=r; break; } }
+      if(hdrRow<0){ showToast("⚠️ Could not find header row"); closeImport(); return; }
+      var hdr=rows[hdrRow];
+      // Find column indices
+      var iLoc=hdr.indexOf("Location");
+      var iCat=hdr.findIndex(function(h){ return h&&h.toString().indexOf("Scope")>=0&&h.toString().indexOf("Category")>=0; });
+      var iSrc=hdr.findIndex(function(h){ return h&&h.toString().indexOf("Emission Source")>=0; });
+      var iVnd=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("vendor")>=0; });
+      var iNm=hdr.findIndex(function(h){ return h&&h.toString().indexOf("ESG Responsible")>=0; });
+      var iEm=hdr.findIndex(function(h){ return h&&h.toString().indexOf("ESG Email")>=0; });
+      var loaded=0;
+      for(var r2=hdrRow+1;r2<rows.length;r2++){
+        var row=rows[r2];
+        if(!row[iLoc]) continue;
+        var loc=row[iLoc], cat=row[iCat], src=row[iSrc];
+        var match=DATA.find(function(it){ return it.location===loc&&it.category===cat&&it.source===src; });
+        if(match){
+          var existing=asgn[match.id]||{};
+          asgn[match.id]={
+            name: iNm>=0&&row[iNm] ? row[iNm] : existing.name||"",
+            email: iEm>=0&&row[iEm] ? row[iEm] : existing.email||"",
+            vendor: iVnd>=0&&row[iVnd] ? row[iVnd] : existing.vendor||""
+          };
+          if(asgn[match.id].name||asgn[match.id].vendor) loaded++;
+        }
+      }
+      lsSave();
+      if(paMode){
+        setBanner("info","⏳ Saving imported data to SharePoint…");
+        var chain=Promise.resolve();
+        Object.keys(asgn).forEach(function(id){ chain=chain.then(function(){ return paSave(id,asgn[id]); }); });
+        chain.then(function(){ setBanner("ok","✅ Imported "+loaded+" entries — synced to SharePoint"); });
+      } else {
+        showToast("✅ Imported "+loaded+" entries from "+file.name);
+      }
+      updateStats(); buildCards(); renderTable();
+      closeImport();
+    } catch(err){ showToast("⚠️ Error reading file: "+err.message); closeImport(); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function showToast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.style.display="block";
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){ t.style.display="none"; },3000);
+}
+
+// Init
+init();
+</script>
+</body>
+</html>
