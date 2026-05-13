@@ -248,9 +248,9 @@ select.inp[disabled]{background:#F7F9FB;color:var(--grey);cursor:default;}
       <th onclick="sortBy(6)">Data Source Document</th>
       <th onclick="sortBy(7)">Frequency</th>
       <th class="th-vendor" style="min-width:160px" onclick="sortBy(8)">🏢 Vendor / Supplier<br><small style="font-weight:400;opacity:.8">(if applicable)</small></th>
-      <th style="min-width:148px">ESG Responsible Person</th>
-      <th style="min-width:170px">ESG Email</th>
       <th style="min-width:110px;background:#1E5A2A !important">📥 Data Entry Method</th>
+      <th style="min-width:148px">Data Owner</th>
+      <th style="min-width:170px">Email</th>
       <th style="width:105px">Action</th>
     </tr></thead>
     <tbody id="tbody"></tbody>
@@ -262,7 +262,7 @@ select.inp[disabled]{background:#F7F9FB;color:var(--grey);cursor:default;}
 <div class="import-overlay" id="importOverlay">
   <div class="import-box">
     <h3>Import from Excel</h3>
-    <p>Upload the DAME GHG Data Mapping Excel file. The dashboard will read any existing entries in the <strong>ESG Responsible Person</strong>, <strong>ESG Email</strong>, and <strong>Vendor / Supplier</strong> columns and load them in.</p>
+    <p>Upload the DAME GHG Data Mapping Excel file. The dashboard will read any existing entries in the <strong>Data Owner</strong>, <strong>Email</strong>, and <strong>Vendor / Supplier</strong> columns and load them in.</p>
     <div class="import-drop" id="importDrop" onclick="document.getElementById('fileIn').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
       <p>&#128196; <strong>Click to browse</strong> or drag &amp; drop your .xlsx file here</p>
       <p style="margin-top:6px;font-size:12px" id="importStatus">No file selected</p>
@@ -308,7 +308,7 @@ var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api
 
 var asgn = {};
 var scopeF = "", sortCol = -1, sortDir = 1;
-var STORE  = "dame_ghg_v4";
+var STORE  = "dame_ghg_v5";
 var editMode = {};
 var paMode = false;
 
@@ -335,7 +335,7 @@ function paLoad(){
     .then(function(items){
       if(Array.isArray(items)){
         items.forEach(function(item){
-          if(item.Title) asgn[item.Title]={ name:item.ESGPerson||"", email:item.ESGEmail||"", vendor:item.Vendor||"", dataEntryMethod:item.DataEntryMethod||"" };
+          if(item.Title) asgn[item.Title]={ name:item.DataOwner||"", email:item.Email||"" , vendor:item.Vendor||"", dataEntryMethod:item.DataEntryMethod||"" };
         });
         lsSave();
       }
@@ -489,7 +489,7 @@ function renderTable() {
     // name input
     var nInp='<input type="text" class="inp'+(hasN?" filled":"")+(isEdit?"":" readonly")
       +'" id="n_'+it.id+'" data-id="'+it.id+'" value="'+esc(a.name)
-      +'" placeholder="Responsible person…"'+(isEdit?'':'readonly')+'>';
+      +'" placeholder="Data owner…"'+(isEdit?'':'readonly')+'>';
 
     // email input
     var eInp='<input type="email" class="inp'+(hasE?" filled":"")+(isEdit?"":" readonly")
@@ -514,7 +514,7 @@ function renderTable() {
       +'<option value="Manual"'+(dmVal==="Manual"?" selected":"")+'>Manual</option>'
       +'</select>';
 
-    h+='<tr id="row_'+it.id+'"'+(done?' class="done"':'')+'>'      +'<td class="grey-td" style="text-align:center">'+(i+1)+'</td>'      +'<td style="font-weight:600;font-size:11px;line-height:1.3">'+esc(it.location)+'</td>'      +'<td><span class="type-bdg" style="background:'+tc+'">'+esc(st)+'</span></td>'      +'<td><span class="cat-bdg" style="background:'+cc+'">'+esc(cs)+'</span>'+(isWTT?'<div class="wtt-note">Derived from S1</div>':'')+'</td>'      +'<td style="font-weight:500">'+esc(it.source)+'</td>'      +'<td class="grey-td" style="text-align:center">'+esc(it.unit||'—')+'</td>'      +'<td class="grey-td" style="font-size:11px">'+ds+'</td>'      +'<td class="grey-td">'+esc(it.frequency)+'</td>'      +'<td style="background:#FDF8F2">'+vInp+'</td>'      +'<td>'+nInp+'</td>'      +'<td>'+eInp+'</td>'      +'<td style="background:#F2FBF4">'+dmSel+'</td>'      +'<td>'+btns+'</td>'      +'</tr>';
+    h+='<tr id="row_'+it.id+'"'+(done?' class="done"':'')+'>'      +'<td class="grey-td" style="text-align:center">'+(i+1)+'</td>'      +'<td style="font-weight:600;font-size:11px;line-height:1.3">'+esc(it.location)+'</td>'      +'<td><span class="type-bdg" style="background:'+tc+'">'+esc(st)+'</span></td>'      +'<td><span class="cat-bdg" style="background:'+cc+'">'+esc(cs)+'</span>'+(isWTT?'<div class="wtt-note">Derived from S1</div>':'')+'</td>'      +'<td style="font-weight:500">'+esc(it.source)+'</td>'      +'<td class="grey-td" style="text-align:center">'+esc(it.unit||'—')+'</td>'      +'<td class="grey-td" style="font-size:11px">'+ds+'</td>'      +'<td class="grey-td">'+esc(it.frequency)+'</td>'      +'<td style="background:#FDF8F2">'+vInp+'</td>'      +'<td style="background:#F2FBF4">'+dmSel+'</td>'      +'<td>'+nInp+'</td>'      +'<td>'+eInp+'</td>'      +'<td>'+btns+'</td>'      +'</tr>';
   }
   tbody.innerHTML=h;
   attachTableDelegation();
@@ -628,7 +628,7 @@ function sortBy(col){
 
 /* ── Export CSV ── */
 function exportCSV(){
-  var hdr=["ID","Location","Location Type","Scope/Category","Emission Source","Unit","Data Source","Frequency","Vendor/Supplier","ESG Responsible Person","ESG Email","Data Entry Method"];
+  var hdr=["ID","Location","Location Type","Scope/Category","Emission Source","Unit","Data Source","Frequency","Vendor/Supplier","Data Entry Method","Data Owner","Email"];
   var rows=DATA.map(function(it){
     var a=asgn[it.id]||{};
     return [it.id,it.location,it.locType,it.category,it.source,it.unit||"",it.dataSource,it.frequency,a.vendor||"",a.name||"",a.email||"",a.dataEntryMethod||""]
@@ -669,15 +669,14 @@ function exportExcel(){
   if(typeof XLSX==="undefined"){ showToast("⚠️ SheetJS not loaded — check internet connection"); return; }
   var hdr=["Location","Location Type","Scope / Category","Emission Source / Activity",
     "Department Responsible","Contact Person","Data Source Document / System",
-    "Unit","Vendor / Supplier (if applicable)","ESG Responsible Person","ESG Email",
-    "Collection Frequency","Data Entry Method","Status","Applicability"];
+    "Unit","Vendor / Supplier (if applicable)","Collection Frequency","Data Entry Method","Data Owner","Email","Status","Applicability"];
   var rows=[hdr];
   DATA.forEach(function(it){
     var a=asgn[it.id]||{};
     rows.push([it.location,it.locType,it.category,it.source,
       it.dept||"",it.contact||"",it.dataSource,
-      it.unit||"",a.vendor||"",a.name||"",a.email||"",
-      it.frequency,a.dataEntryMethod||"","Not started","Y"]);
+      it.unit||"",a.vendor||"",
+      it.frequency,a.dataEntryMethod||"",a.name||"",a.email||"","Not started","Y"]);
   });
   var ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[{wch:35},{wch:14},{wch:28},{wch:40},{wch:20},{wch:25},{wch:32},
@@ -727,8 +726,8 @@ function handleFile(file){
       var iSrc=hdr.findIndex(function(h){ return h&&h.toString().indexOf("Emission Source")>=0; });
       var iVnd=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("vendor")>=0; });
       var iDm=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("data entry")>=0; });
-      var iNm=hdr.findIndex(function(h){ return h&&h.toString().indexOf("ESG Responsible")>=0; });
-      var iEm=hdr.findIndex(function(h){ return h&&h.toString().indexOf("ESG Email")>=0; });
+      var iNm=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("data owner")>=0; });
+      var iEm=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("email")>=0; });
       var loaded=0;
       for(var r2=hdrRow+1;r2<rows.length;r2++){
         var row=rows[r2];
