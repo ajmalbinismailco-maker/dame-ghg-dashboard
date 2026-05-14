@@ -357,7 +357,15 @@ function paLoad(){
     .then(function(items){
       if(Array.isArray(items)){
         items.forEach(function(item){
-          if(item.Title) asgn[item.Title]={ name:item.DataOwner||"", email:item.Email||"" , vendor:item.Vendor||"", dataEntryMethod:item.DataEntryMethod||"" };
+          if(item.Title){
+            var ex = asgn[item.Title] || {};
+            asgn[item.Title] = {
+              name:            item.DataOwner       || ex.name            || "",
+              email:           item.Email           || ex.email           || "",
+              vendor:          item.Vendor          || ex.vendor          || "",
+              dataEntryMethod: item.DataEntryMethod || ex.dataEntryMethod || ""
+            };
+          }
         });
         lsSave();
       }
