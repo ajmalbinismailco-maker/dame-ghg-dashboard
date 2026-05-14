@@ -777,15 +777,24 @@ function handleFile(file){
       }
       if(!ws){ showToast("⚠️ No worksheet found in file"); closeImport(); return; }
       var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
-      // Find header row — look for "Location" in col A
+      // Find header row — scan first 15 rows, match "Location" in any column (case-insensitive)
       var hdrRow=-1;
-      for(var r=0;r<rows.length;r++){ if(rows[r][0]==="Location"){ hdrRow=r; break; } }
-      if(hdrRow<0){ showToast("⚠️ Could not find header row"); closeImport(); return; }
-      var hdr=rows[hdrRow];
+      var scanLimit=Math.min(rows.length,15);
+      for(var r=0;r<scanLimit;r++){
+        var rowArr=rows[r]||[];
+        for(var c=0;c<rowArr.length;c++){
+          var cell=(rowArr[c]||"").toString().trim().toLowerCase();
+          if(cell==="location"){ hdrRow=r; break; }
+        }
+        if(hdrRow>=0) break;
+      }
+      if(hdrRow<0){ showToast("⚠️ Could not find header row — make sure your file has a 'Location' column header"); closeImport(); return; }
+      // Normalize header values (trim) for downstream matching
+      var hdr=(rows[hdrRow]||[]).map(function(c){ return (c||"").toString().trim(); });
       // Find column indices
-      var iLoc=hdr.indexOf("Location");
-      var iCat=hdr.findIndex(function(h){ return h&&h.toString().indexOf("Scope")>=0&&h.toString().indexOf("Category")>=0; });
-      var iSrc=hdr.findIndex(function(h){ return h&&h.toString().indexOf("Emission Source")>=0; });
+      var iLoc=hdr.findIndex(function(h){ return h&&h.toString().trim().toLowerCase()==="location"; });
+      var iCat=hdr.findIndex(function(h){ var s=(h||"").toString().toLowerCase(); return s.indexOf("scope")>=0&&s.indexOf("category")>=0; });
+      var iSrc=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("emission source")>=0; });
       var iVnd=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("vendor")>=0; });
       var iDm=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("data entry")>=0; });
       var iNm=hdr.findIndex(function(h){ return h&&h.toString().toLowerCase().indexOf("data owner")>=0; });
