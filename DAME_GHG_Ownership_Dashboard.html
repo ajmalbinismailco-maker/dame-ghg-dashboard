@@ -328,8 +328,9 @@ var PA_READ  = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api
 var PA_WRITE = "https://default6cf18ffb42c64d7d98745c515ab0c6.ae.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7acd19f0e9c14345ad2dd353bc136771/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zQe_Ut7OQKGtW_hSwa7dT3EXi7XQSsY_4e3llkrAJi4";   // ← Write flow URL (saves one entry)
 
 var asgn = {};
+var PRELOAD = {"item_0": {"dataEntryMethod": "SAP"}, "item_5": {"name": "Praveen", "dataEntryMethod": "Manual"}, "item_7": {"name": "Praveen"}, "item_8": {"name": "Praveen"}, "item_9": {"name": "Shakeel"}, "item_10": {"name": "Praveen"}, "item_11": {"name": "Praveen", "dataEntryMethod": "Manual"}, "item_12": {"name": "Praveen", "dataEntryMethod": "Manual"}, "item_13": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_14": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_15": {"dataEntryMethod": "SAP"}, "item_16": {"name": "Noufal"}, "item_24": {"name": "Shakeel"}, "item_26": {"dataEntryMethod": "SAP"}, "item_27": {"name": "Miyuki", "dataEntryMethod": "SAP"}, "item_28": {"name": "Miyuki"}, "item_29": {"name": "Miyuki"}, "item_30": {"name": "Praveen"}, "item_31": {"name": "Praveen"}, "item_32": {"name": "Praveen", "dataEntryMethod": "SAP"}, "item_33": {"name": "Praveen"}, "item_34": {"name": "Praveen"}, "item_35": {"name": "Praveen"}, "item_36": {"name": "Praveen"}, "item_37": {"name": "Praveen"}, "item_38": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_39": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_40": {"dataEntryMethod": "SAP"}, "item_41": {"name": "Miyuki"}, "item_42": {"name": "Miyuki"}, "item_43": {"name": "Noufal"}, "item_52": {"dataEntryMethod": "SAP"}, "item_53": {"name": "Miyuki"}, "item_54": {"name": "Miyuki"}, "item_55": {"name": "Miyuki"}, "item_56": {"name": "Praveen"}, "item_58": {"name": "Praveen"}, "item_59": {"name": "Praveen"}, "item_61": {"name": "Praveen"}, "item_62": {"name": "Praveen"}, "item_63": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_64": {"dataEntryMethod": "SAP"}, "item_75": {"dataEntryMethod": "SAP"}, "item_84": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_85": {"dataEntryMethod": "SAP"}, "item_96": {"dataEntryMethod": "SAP"}, "item_100": {"name": "Muhammad Qaisar"}, "item_101": {"name": "Muhammad Qaisar"}, "item_102": {"name": "Muhammad Qaisar"}, "item_103": {"name": "Muhammad Qaisar"}, "item_104": {"name": "Muhammad Qaisar"}, "item_105": {"name": "Muhammad Qaisar"}, "item_106": {"name": "Muhammad Qaisar"}, "item_107": {"name": "Muhammad Qaisar"}, "item_108": {"name": "Muhammad Qaisar"}, "item_109": {"name": "Muhammad Qaisar"}, "item_110": {"name": "Muhammad Qaisar"}, "item_112": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_114": {"dataEntryMethod": "SAP"}, "item_125": {"dataEntryMethod": "SAP"}, "item_131": {"name": "Praveen"}, "item_132": {"name": "Praveen"}, "item_133": {"name": "Praveen"}, "item_134": {"name": "Praveen"}, "item_135": {"name": "Praveen"}, "item_136": {"name": "Praveen"}, "item_137": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_138": {"dataEntryMethod": "SAP"}, "item_150": {"dataEntryMethod": "SAP"}, "item_155": {"name": "Praveen"}, "item_156": {"name": "Praveen"}, "item_157": {"name": "Praveen"}, "item_158": {"name": "Praveen"}, "item_159": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_160": {"dataEntryMethod": "SAP"}, "item_171": {"dataEntryMethod": "SAP"}, "item_175": {"name": "Praveen"}, "item_179": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_180": {"dataEntryMethod": "SAP"}, "item_191": {"dataEntryMethod": "SAP"}, "item_199": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_200": {"dataEntryMethod": "SAP"}, "item_211": {"dataEntryMethod": "SAP"}, "item_219": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_220": {"dataEntryMethod": "SAP"}, "item_231": {"dataEntryMethod": "SAP"}, "item_239": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_240": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_251": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_259": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_260": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}, "item_271": {"name": "Hussein Fruitwala", "dataEntryMethod": "SAP"}};
 var scopeF = "", sortCol = -1, sortDir = 1;
-var STORE  = "dame_ghg_v5";
+var STORE  = "dame_ghg_v6";
 var editMode = {};
 var paMode = false;
 
@@ -405,6 +406,14 @@ function persist(id, data){
 // ── Init ──
 function init(){
   lsLoad();
+  // Merge pre-loaded data owners / entry methods (fills gaps without overwriting saved work)
+  Object.keys(PRELOAD).forEach(function(id){
+    if(!asgn[id]) asgn[id] = {};
+    Object.keys(PRELOAD[id]).forEach(function(k){
+      if(!asgn[id][k]) asgn[id][k] = PRELOAD[id][k];
+    });
+  });
+  lsSave();
   attachTableDelegation();
   attachCardDelegation();
   buildDrop(); initColFilters(); buildCards(); renderTable(); updateStats();
